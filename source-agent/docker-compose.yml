@@ -1,0 +1,16 @@
+# One agent per source database. Run with its own env file and project name:
+#   docker compose -p agent-<name> --env-file source-agent/<name>.env -f source-agent/docker-compose.yml up -d
+services:
+  agent:
+    build: .
+    environment:
+      SOURCE_ID: ${AGENT_SOURCE_ID:?set in the agent env file}
+      DB_HOST: ${AGENT_DB_HOST:?set in the agent env file}
+      DB_PORT: ${AGENT_DB_PORT:-5432}
+      DB_NAME: ${AGENT_DB_NAME:?set in the agent env file}
+      DB_USER: ${AGENT_DB_USER:?set in the agent env file}
+      DB_PASSWORD: ${AGENT_DB_PASSWORD:?set in the agent env file}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${AGENT_PORT:?set in the agent env file}:8000"

@@ -1,0 +1,87 @@
+name: mini-bi
+
+services:
+  meta-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${META_DB_NAME:?set in .env}
+      POSTGRES_USER: ${META_DB_USER:?set in .env}
+      POSTGRES_PASSWORD: ${META_DB_PASSWORD:?set in .env}
+    ports:
+      - "${META_DB_PORT:-5437}:5432"
+    volumes:
+      - meta_pgdata:/var/lib/postgresql/data
+      - ./meta/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  meta-api:
+    build: ./meta/api
+    depends_on:
+      meta-db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DB_HOST: meta-db
+      DB_PORT: "5432"
+      DB_NAME: ${META_DB_NAME}
+      DB_USER: ${META_DB_USER}
+      DB_PASSWORD: ${META_DB_PASSWORD}
+      SOURCE_HOST_ALIAS: host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${META_API_PORT:-8005}:8000"
+
+  templates-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${TEMPLATES_DB_NAME:?set in .env}
+      POSTGRES_USER: ${TEMPLATES_DB_USER:?set in .env}
+      POSTGRES_PASSWORD: ${TEMPLATES_DB_PASSWORD:?set in .env}
+    ports:
+      - "${TEMPLATES_DB_PORT:-5436}:5432"
+    volumes:
+      - templates_pgdata:/var/lib/postgresql/data
+      - ./templates/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  templates-api:
+    build: ./templates/api
+    depends_on:
+      templates-db:
+        condition: service_healthy
+    environment:
+      DB_HOST: templates-db
+      DB_PORT: "5432"
+      DB_NAME: ${TEMPLATES_DB_NAME}
+      DB_USER: ${TEMPLATES_DB_USER}
+      DB_PASSWORD: ${TEMPLATES_DB_PASSWORD}
+    ports:
+      - "${TEMPLATES_API_PORT:-8004}:8000"
+
+  app:
+    build: ./app
+    depends_on:
+      - meta-api
+      - templates-api
+    env_file: .env
+    environment:
+      META_API_URL: http://meta-api:8000
+      TEMPLATES_API_URL: http://templates-api:8000
+      SOURCE_HOST_ALIAS: host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${APP_PORT:-8501}:8501"
+
+volumes:
+  meta_pgdata:
+  templates_pgdata:
