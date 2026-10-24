@@ -27,9 +27,10 @@ The Streamlit interface builds a query from forms filled with catalog data:
 
 ![Architecture](docs/img/architecture.png)
 
-Modules are grouped by interaction: query building, result visualization,
-templates and diff, services and storages. External libraries are shown
-outside the system frame.
+Every database runs in its own Docker container with its own volume and
+network. Source databases talk to the metadata database through internal APIs,
+the metadata and templates databases feed the query interface, and the query
+interface can switch to the templates interface and back.
 
 ## Business architecture
 
